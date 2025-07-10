@@ -15,7 +15,7 @@ from uuid import uuid4
 import filetype
 import requests
 
-from config import ENABLE_ARIA2, TMPFILE_PATH
+from config import TMPFILE_PATH
 from engine.base import BaseDownloader
 
 
@@ -25,18 +25,6 @@ class DirectDownload(BaseDownloader):
         # direct download doesn't need to setup formats
         pass
 
-    def _get_aria2_name(self):
-        try:
-            cmd = f"aria2c --truncate-console-readout=true -x10 --dry-run --file-allocation=none {self._url}"
-            result = subprocess.run(cmd, stdout=subprocess.PIPE, shell=True)
-            stdout_str = result.stdout.decode("utf-8")
-            name = os.path.basename(stdout_str).split("\n")[0]
-            if len(name) == 0:
-                name = os.path.basename(self._url)
-            return name
-        except Exception:
-            name = os.path.basename(self._url)
-            return name
 
     def _requests_download(self):
         logging.info("Requests download with url %s", self._url)
@@ -53,81 +41,6 @@ class DirectDownload(BaseDownloader):
 
         return [file.as_posix()]
 
-    def _aria2_download(self):
-        ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.4472.124 Safari/537.36"
-        filename = self._get_aria2_name()
-        self._process = None
-        try:
-            self._bot_msg.edit_text("Aria2 download starting...")
-            temp_dir = self._tempdir.name
-            command = [
-                "aria2c",
-                "--max-tries=3",
-                "--max-concurrent-downloads=8",
-                "--max-connection-per-server=16",
-                "--split=16",
-                "--summary-interval=1",
-                "--console-log-level=notice",
-                "--show-console-readout=true",
-                "--quiet=false",
-                "--human-readable=true",
-                f"--user-agent={ua}",
-                "-d", temp_dir,
-                "-o", filename,
-                self._url,
-            ]
-
-            self._process = subprocess.Popen(
-                command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                universal_newlines=True,
-                bufsize=1
-            )
-
-            while True:
-                line = self._process.stdout.readline()
-                if not line:
-                    if self._process.poll() is not None:
-                        break
-                    continue
-
-                progress = self.__parse_progress(line)
-                if progress:
-                    self.download_hook(progress)
-                elif "Download complete:" in line:
-                    self.download_hook({"status": "complete"})
-
-            self._process.wait(timeout=300)
-            success = self._process.wait() == 0
-            if not success:
-                raise subprocess.CalledProcessError(
-                    self._process.returncode, 
-                    command, 
-                    self._process.stderr.read()
-                )
-            if self._process.returncode != 0:
-                raise subprocess.CalledProcessError(
-                    self._process.returncode, 
-                    command, 
-                    stderr
-                )
-
-            files = [f for f in Path(temp_dir).glob("*") if f.is_file()]
-            if not files:
-                raise FileNotFoundError(f"No files found in {temp_dir}")
-
-            file = files[0]
-            # Handle file extension
-            if not file.suffix:
-                if ext := filetype.guess_extension(file):
-                    new_file = file.with_suffix(f".{ext}")
-                    file.rename(new_file)
-                    file = new_file
-
-            logging.info("Successfully downloaded file: %s", file)
-
-            return [file.as_posix()]
 
         except subprocess.TimeoutExpired:
             error_msg = "Download timed out after 5 minutes."
