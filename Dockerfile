@@ -5,6 +5,12 @@ RUN apk add alpine-sdk python3-dev musl-dev linux-headers
 RUN pip install pdm
 RUN pdm install
 
+# --- ADD THIS BLOCK FOR DIAGNOSIS ---
+RUN echo "====== INSTALLED PACKAGES ======" && \
+    pdm list && \
+    echo "================================"
+# --------------------------------------
+
 FROM python:3.12-alpine AS runner
 WORKDIR /app
 
