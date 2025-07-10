@@ -27,7 +27,6 @@ from config import (
     APP_ID,
     AUTHORIZED_USER,
     BOT_TOKEN,
-    ENABLE_ARIA2,
     ENABLE_FFMPEG,
     M3U8_SUPPORT,
     ENABLE_VIP,
