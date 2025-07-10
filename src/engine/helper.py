@@ -27,7 +27,6 @@ from tqdm import tqdm
 from config import (
     AUDIO_FORMAT,
     CAPTION_URL_LENGTH_LIMIT,
-    ENABLE_ARIA2,
     TG_NORMAL_MAX_SIZE,
 )
 from utils import shorten_url, sizeof_fmt
