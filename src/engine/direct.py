@@ -94,10 +94,6 @@ class DirectDownload(BaseDownloader):
             return int(float(number) * units.get(unit, 1))
         return 0
 
-    def _download(self, formats=None) -> list:
-        if ENABLE_ARIA2:
-            return self._aria2_download()
-        return self._requests_download()
 
     def _start(self):
         self._download()
