@@ -1,22 +1,23 @@
-FROM python:3.12-alpine AS pybuilder
-ADD pyproject.toml pdm.lock /build/
-WORKDIR /build
-RUN apk add alpine-sdk python3-dev musl-dev linux-headers
-RUN pip install pdm
-RUN pdm install
+# Use a standard, slim Python image
+FROM python:3.11-slim
 
-# --- ADD THIS BLOCK FOR DIAGNOSIS ---
-RUN echo "====== INSTALLED PACKAGES ======" && \
-    pdm list && \
-    echo "================================"
-# --------------------------------------
-
-FROM python:3.12-alpine AS runner
+# Set the working directory in the container
 WORKDIR /app
 
-RUN apk update && apk add --no-cache ffmpeg
-COPY --from=pybuilder /build/.venv/lib/ /usr/local/lib/
-COPY src /app
-WORKDIR /app
+# Update the package manager and install ffmpeg (essential for the bot)
+# --no-install-recommends saves space
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
 
-CMD ["python" ,"main.py"]
+# Copy ONLY the requirements file into the container
+# This is a Docker best practice to use the build cache effectively
+COPY requirements.txt .
+
+# Install the Python packages from your clean requirements.txt file
+# This command ONLY reads requirements.txt and nothing else
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Now copy the rest of your application's source code
+COPY . .
+
+# Set the command to run when the container starts
+CMD ["python", "src/main.py"]
